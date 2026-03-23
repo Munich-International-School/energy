@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MIS Solar Energy</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --mis-dark-blue: #003d63;
+      --mis-light-blue: #00abe5;
+      --amber: #f59e0b;
+      --emerald: #10b981;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: transparent;
+    }
+
+    /* ── Card Container ──────────────────── */
+    .solar-widget {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+      overflow: hidden;
+      max-width: 380px;
+      font-size: 14px;
+      color: #1e293b;
+      position: relative;
+    }
+
+    /* ── Header ──────────────────────────── */
+    .widget-header {
+      background: linear-gradient(135deg, var(--mis-dark-blue), #005a8f);
+      color: white;
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .widget-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .widget-sun {
+      width: 36px; height: 36px;
+      background: rgba(245,158,11,0.2);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .widget-title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .widget-subtitle {
+      font-size: 11px;
+      color: rgba(255,255,255,0.6);
+      margin-top: 1px;
+    }
+    .widget-live {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px;
+      color: #6ee7b7;
+      font-weight: 600;
+    }
+    .widget-live-dot {
+      width: 6px; height: 6px;
+      background: #10b981;
+      border-radius: 50%;
+      animation: wdot 2s ease-in-out infinite;
+    }
+    @keyframes wdot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── Stats Grid ──────────────────────── */
+    .widget-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: #f1f5f9;
+    }
+    .widget-stat {
+      background: white;
+      padding: 16px 20px;
+      text-align: center;
+    }
+    .widget-stat-value {
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+    .widget-stat-value.amber { color: var(--amber); }
+    .widget-stat-value.green { color: var(--emerald); }
+    .widget-stat-value.blue { color: var(--mis-light-blue); }
+    .widget-stat-label {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 2px;
+      font-weight: 500;
+    }
+
+    /* ── Footer ──────────────────────────── */
+    .widget-footer {
+      background: #f8fafc;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-top: 1px solid #f1f5f9;
+    }
+    .widget-co2 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #059669;
+      font-weight: 600;
+    }
+    .widget-info-btn {
+      width: 28px; height: 28px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 50%;
+      background: white;
+      color: #94a3b8;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: all 0.2s;
+    }
+    .widget-info-btn:hover {
+      border-color: var(--mis-light-blue);
+      color: var(--mis-light-blue);
+      background: rgba(0,171,229,0.05);
+    }
+
+    /* ── Expanded Detail Panel ───────────── */
+    .widget-detail {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s ease, padding 0.35s ease;
+      background: white;
+    }
+    .widget-detail.open {
+      max-height: 400px;
+    }
+    .widget-detail-inner {
+      padding: 0 20px 20px;
+    }
+    .widget-detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 13px;
+    }
+    .widget-detail-row:last-child { border-bottom: none; }
+    .widget-detail-label { color: #64748b; }
+    .widget-detail-value { font-weight: 600; color: #1e293b; }
+
+    .widget-detail-section {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #94a3b8;
+      font-weight: 600;
+      padding-top: 14px;
+      padding-bottom: 6px;
+    }
+
+    .widget-brand {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding-top: 12px;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    .widget-brand strong { color: var(--mis-dark-blue); font-weight: 600; }
+
+    /* ── Loading ──────────────────────────── */
+    .widget-loading {
+      padding: 48px 24px;
+      text-align: center;
+      color: #94a3b8;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="solar-widget" id="solarWidget">
+    <div class="widget-loading" id="widgetLoading">
+      Loading solar data...
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'https://us-central1-my-mis-app.cloudfunctions.net/solarApi';
+    const API_KEY = 'mis_solar_c68061e8d6e02a764ad2d55f5c2a64241dd22be446c757a2';
+
+    let detailOpen = false;
+
+    async function apiFetch(endpoint) {
+      const res = await fetch(`${API_BASE}/${endpoint}`, {
+        headers: { 'x-api-key': API_KEY }
+      });
+      if (!res.ok) throw new Error(`API ${endpoint}: ${res.status}`);
+      return res.json();
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    async function loadWidget() {
+      try {
+        const [current, today, history] = await Promise.all([
+          apiFetch('current'),
+          apiFetch('today'),
+          apiFetch('history?days=7'),
+        ]);
+
+        const totalMwh = current.plantTotal?.totMwhOut ?? 0;
+        const todayKwh = today.totalKwh ?? 0;
+        const co2Kg = (todayKwh * 0.38).toFixed(1);
+        const currentKw = current.plantTotal?.currentKw ??
+          (current.inverters?.reduce((s, i) => s + (i.periodKwh || 0) * 12, 0) ?? 0);
+        const lifetimeCo2 = (totalMwh * 1000 * 0.38 / 1000).toFixed(1);
+        const days = history.days ?? [];
+        const avgKwh = days.length
+          ? (days.reduce((s, d) => s + (d.totalKwh || 0), 0) / days.length).toFixed(0)
+          : '—';
+        const trees = Math.round(todayKwh * 0.38 / (22 / 365));
+        const carKm = Math.round(todayKwh * 0.38 / 0.12);
+
+        // Count healthy inverters
+        const inverters = current.inverters ?? [];
+        const healthyCount = inverters.filter(i => i.health === 'Ok' || i.health === 'normal').length;
+
+        const widget = document.getElementById('solarWidget');
+        widget.innerHTML = `
+          <div class="widget-header">
+            <div class="widget-header-left">
+              <div class="widget-sun">☀️</div>
+              <div>
+                <div class="widget-title">MIS Solar Energy</div>
+                <div class="widget-subtitle">${Number(totalMwh).toLocaleString('en', {maximumFractionDigits:1})} MWh lifetime</div>
+              </div>
+            </div>
+            ${currentKw > 0 ? `
+              <div class="widget-live">
+                <div class="widget-live-dot"></div>
+                ${currentKw.toFixed(1)} kW
+              </div>` : ''}
+          </div>
+
+          <div class="widget-stats">
+            <div class="widget-stat">
+              <div class="widget-stat-value amber">${todayKwh.toFixed(1)}</div>
+              <div class="widget-stat-label">kWh Today</div>
+            </div>
+            <div class="widget-stat">
+              <div class="widget-stat-value green">${co2Kg}</div>
+              <div class="widget-stat-label">kg CO₂ Saved</div>
+            </div>
+          </div>
+
+          <div class="widget-detail" id="widgetDetail">
+            <div class="widget-detail-inner">
+              <div class="widget-detail-section">Environmental Impact</div>
+              <div class="widget-detail-row">
+                <span class="widget-detail-label">🌳 Tree equivalent</span>
+                <span class="widget-detail-value">${trees.toLocaleString()} trees/day</span>
+              </div>
+              <div class="widget-detail-row">
+                <span class="widget-detail-label">🚗 Driving avoided</span>
+                <span class="widget-detail-value">${carKm.toLocaleString()} km</span>
+              </div>
+              <div class="widget-detail-row">
+                <span class="widget-detail-label">♻️ Lifetime CO₂</span>
+                <span class="widget-detail-value">${lifetimeCo2} tonnes</span>
+              </div>
+              <div class="widget-detail-section">System</div>
+              <div class="widget-detail-row">
+                <span class="widget-detail-label">📊 7-day average</span>
+                <span class="widget-detail-value">${avgKwh} kWh/day</span>
+              </div>
+              <div class="widget-detail-row">
+                <span class="widget-detail-label">🔌 Inverters</span>
+                <span class="widget-detail-value">${healthyCount}/${inverters.length} online</span>
+              </div>
+              <div class="widget-brand">
+                Powered by <strong>MIS</strong> Solar Array
+              </div>
+            </div>
+          </div>
+
+          <div class="widget-footer">
+            <div class="widget-co2">🌱 ${co2Kg} kg CO₂ saved today</div>
+            <button class="widget-info-btn" id="infoBtn" title="More details" aria-label="Toggle details">
+              <span class="material-icons" style="font-size: 16px;">info_outline</span>
+            </button>
+          </div>
+        `;
+
+        // Info toggle
+        document.getElementById('infoBtn').addEventListener('click', () => {
+          detailOpen = !detailOpen;
+          document.getElementById('widgetDetail').classList.toggle('open', detailOpen);
+        });
+
+      } catch (err) {
+        console.error('Widget load error:', err);
+        document.getElementById('widgetLoading').textContent = 'Solar data unavailable';
+      }
+    }
+
+    loadWidget();
+    // Refresh every 10 minutes
+    setInterval(loadWidget, 600000);
+  </script>
+</body>
+</html>

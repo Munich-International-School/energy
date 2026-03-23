@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MIS Solar Energy</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --mis-dark-blue: #003d63;
+      --mis-light-blue: #00abe5;
+      --mis-green: #bed200;
+      --mis-orange: #ee7203;
+      --amber: #f59e0b;
+      --emerald: #10b981;
+      --slate-50: #f8fafc;
+      --slate-100: #f1f5f9;
+      --slate-600: #475569;
+      --slate-800: #1e293b;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      color: white;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Top Bar ──────────────────────────── */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 40px;
+      background: rgba(0,0,0,0.3);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+    .top-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .top-bar-logo {
+      width: 40px; height: 40px;
+      background: var(--mis-light-blue);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 16px; color: white;
+    }
+    .top-bar-title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .top-bar-title span { color: var(--amber); }
+    .top-bar-right {
+      display: flex; align-items: center; gap: 24px;
+    }
+    .live-badge {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(16,185,129,0.15);
+      border: 1px solid rgba(16,185,129,0.3);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 13px;
+      color: #6ee7b7;
+      font-weight: 600;
+    }
+    .live-dot {
+      width: 8px; height: 8px;
+      background: #10b981;
+      border-radius: 50%;
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.7); }
+    }
+    .clock {
+      font-size: 20px;
+      font-weight: 300;
+      color: rgba(255,255,255,0.6);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Slide Container ─────────────────── */
+    .slides-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 60px;
+      opacity: 0;
+      transform: scale(0.96);
+      transition: opacity 0.8s ease, transform 0.8s ease;
+      pointer-events: none;
+    }
+    .slide.active {
+      opacity: 1;
+      transform: scale(1);
+      pointer-events: auto;
+    }
+
+    /* ── Slide Indicators ────────────────── */
+    .slide-indicators {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      padding: 16px 0 24px;
+      flex-shrink: 0;
+    }
+    .slide-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      transition: all 0.4s ease;
+    }
+    .slide-dot.active {
+      background: var(--amber);
+      width: 32px;
+      border-radius: 5px;
+    }
+
+    /* ── Slide: Hero ─────────────────────── */
+    .hero-slide {
+      display: flex;
+      gap: 60px;
+      align-items: center;
+      width: 100%;
+      max-width: 1400px;
+    }
+    .hero-left { flex: 1; }
+    .hero-label {
+      font-size: 15px;
+      color: var(--amber);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+    }
+    .hero-number {
+      font-size: 96px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -3px;
+      background: linear-gradient(135deg, var(--amber), #fbbf24);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-unit {
+      font-size: 32px;
+      font-weight: 300;
+      color: rgba(255,255,255,0.6);
+      margin-top: 4px;
+    }
+    .hero-subtitle {
+      font-size: 18px;
+      color: rgba(255,255,255,0.5);
+      margin-top: 16px;
+    }
+    .hero-right {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .hero-stat-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px 32px;
+      min-width: 280px;
+    }
+    .hero-stat-label {
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+    .hero-stat-value {
+      font-size: 40px;
+      font-weight: 700;
+    }
+    .hero-stat-value.amber { color: var(--amber); }
+    .hero-stat-value.green { color: var(--emerald); }
+    .hero-stat-value.blue { color: var(--mis-light-blue); }
+
+    /* ── Slide: CO₂ ──────────────────────── */
+    .co2-slide {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 40px;
+      width: 100%;
+      max-width: 1200px;
+    }
+    .co2-main {
+      text-align: center;
+    }
+    .co2-icon {
+      font-size: 56px;
+      margin-bottom: 12px;
+    }
+    .co2-number {
+      font-size: 88px;
+      font-weight: 800;
+      color: var(--emerald);
+      line-height: 1;
+    }
+    .co2-label {
+      font-size: 24px;
+      color: rgba(255,255,255,0.5);
+      margin-top: 8px;
+    }
+    .co2-equivalents {
+      display: flex;
+      gap: 40px;
+    }
+    .co2-equiv-card {
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.2);
+      border-radius: 20px;
+      padding: 32px 48px;
+      text-align: center;
+    }
+    .co2-equiv-emoji { font-size: 48px; margin-bottom: 8px; }
+    .co2-equiv-value {
+      font-size: 48px;
+      font-weight: 700;
+      color: white;
+    }
+    .co2-equiv-label {
+      font-size: 16px;
+      color: rgba(255,255,255,0.5);
+      margin-top: 4px;
+    }
+    .co2-lifetime {
+      background: rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 14px 28px;
+      font-size: 18px;
+      color: rgba(255,255,255,0.6);
+    }
+    .co2-lifetime strong { color: white; font-weight: 600; }
+
+    /* ── Slide: Comparison ───────────────── */
+    .comparison-slide {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+      width: 100%;
+      max-width: 1100px;
+    }
+    .comparison-headline {
+      font-size: 28px;
+      color: rgba(255,255,255,0.5);
+      text-align: center;
+    }
+    .comparison-big {
+      text-align: center;
+    }
+    .comparison-number {
+      font-size: 120px;
+      font-weight: 800;
+      color: var(--mis-light-blue);
+      line-height: 1;
+    }
+    .comparison-unit {
+      font-size: 32px;
+      font-weight: 300;
+      color: rgba(255,255,255,0.5);
+      margin-top: 8px;
+    }
+    .comparison-context {
+      font-size: 20px;
+      color: rgba(255,255,255,0.4);
+      text-align: center;
+      max-width: 600px;
+    }
+
+    /* ── Slide: History ──────────────────── */
+    .history-slide {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 1200px;
+      gap: 24px;
+    }
+    .history-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.7);
+    }
+    .history-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 16px;
+      height: 280px;
+      width: 100%;
+      max-width: 900px;
+      padding-top: 20px;
+    }
+    .history-bar-group {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      height: 100%;
+      justify-content: flex-end;
+    }
+    .history-bar-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.7);
+    }
+    .history-bar {
+      width: 100%;
+      max-width: 80px;
+      border-radius: 8px 8px 4px 4px;
+      background: linear-gradient(to top, rgba(245,158,11,0.6), var(--amber));
+      min-height: 4px;
+      transition: height 1s ease;
+    }
+    .history-bar-label {
+      font-size: 14px;
+      color: rgba(255,255,255,0.4);
+      font-weight: 500;
+    }
+    .history-avg {
+      font-size: 18px;
+      color: rgba(255,255,255,0.4);
+      margin-top: 8px;
+    }
+    .history-avg strong { color: var(--amber); font-weight: 600; }
+
+    /* ── Slide: Tip ──────────────────────── */
+    .tip-slide {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+      width: 100%;
+      max-width: 900px;
+      text-align: center;
+    }
+    .tip-badge {
+      background: rgba(245,158,11,0.15);
+      border: 1px solid rgba(245,158,11,0.3);
+      border-radius: 20px;
+      padding: 8px 20px;
+      font-size: 14px;
+      color: var(--amber);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    .tip-icon { font-size: 64px; }
+    .tip-text {
+      font-size: 36px;
+      font-weight: 600;
+      line-height: 1.4;
+      color: rgba(255,255,255,0.9);
+    }
+    .tip-footer {
+      font-size: 16px;
+      color: rgba(255,255,255,0.3);
+    }
+
+    /* ── Slide: Challenge ────────────────── */
+    .challenge-slide {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 28px;
+      width: 100%;
+      max-width: 900px;
+      text-align: center;
+    }
+    .challenge-badge {
+      background: rgba(16,185,129,0.15);
+      border: 1px solid rgba(16,185,129,0.3);
+      border-radius: 20px;
+      padding: 8px 20px;
+      font-size: 14px;
+      color: #6ee7b7;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    .challenge-icon { font-size: 64px; }
+    .challenge-text {
+      font-size: 36px;
+      font-weight: 600;
+      line-height: 1.4;
+      color: rgba(255,255,255,0.9);
+    }
+    .challenge-week {
+      font-size: 16px;
+      color: rgba(255,255,255,0.3);
+    }
+
+    /* ── Loading ──────────────────────────── */
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      gap: 16px;
+    }
+    .loading-spinner {
+      width: 48px; height: 48px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--amber);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <!-- Loading State -->
+  <div class="loading" id="loadingState">
+    <div class="loading-spinner"></div>
+    <div style="color: rgba(255,255,255,0.5); font-size: 14px;">Loading solar data...</div>
+  </div>
+
+  <!-- Main Content (hidden until loaded) -->
+  <div id="mainContent" style="display: none; flex-direction: column; height: 100vh;">
+    <!-- Top Bar -->
+    <div class="top-bar">
+      <div class="top-bar-left">
+        <div class="top-bar-logo">MIS</div>
+        <div class="top-bar-title">Solar <span>Energy</span></div>
+      </div>
+      <div class="top-bar-right">
+        <div class="live-badge">
+          <div class="live-dot"></div>
+          <span id="liveStatus">Live</span>
+        </div>
+        <div class="clock" id="clock"></div>
+      </div>
+    </div>
+
+    <!-- Slides -->
+    <div class="slides-container" id="slidesContainer"></div>
+
+    <!-- Indicators -->
+    <div class="slide-indicators" id="slideIndicators"></div>
+  </div>
+
+  <script>
+    // ── Configuration ───────────────────────
+    const API_BASE = 'https://us-central1-my-mis-app.cloudfunctions.net/solarApi';
+    const API_KEY = 'mis_solar_c68061e8d6e02a764ad2d55f5c2a64241dd22be446c757a2';
+    const SLIDE_INTERVAL_MS = 12000; // 12 seconds per slide
+    const DATA_REFRESH_MS = 600000;  // 10 minutes
+
+    let currentSlide = 0;
+    let slideCount = 0;
+    let slideTimer = null;
+    let solarData = {};
+    let signageConfig = {};
+
+    // ── Clock ───────────────────────────────
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock').textContent =
+        now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // ── API Helpers ─────────────────────────
+    async function apiFetch(endpoint) {
+      const res = await fetch(`${API_BASE}/${endpoint}`, {
+        headers: { 'x-api-key': API_KEY }
+      });
+      if (!res.ok) throw new Error(`API ${endpoint}: ${res.status}`);
+      return res.json();
+    }
+
+    // ── Data Loading ────────────────────────
+    async function loadAllData() {
+      try {
+        const [current, today, history, config] = await Promise.all([
+          apiFetch('current'),
+          apiFetch('today'),
+          apiFetch('history?days=7'),
+          apiFetch('signage-config'),
+        ]);
+        solarData = { current, today, history };
+        signageConfig = config.config || {};
+        return true;
+      } catch (err) {
+        console.error('Data load error:', err);
+        return false;
+      }
+    }
+
+    // ── Slide Builders ──────────────────────
+    function buildHeroSlide() {
+      const totalMwh = solarData.current?.plantTotal?.totMwhOut ?? 0;
+      const todayKwh = solarData.today?.totalKwh ?? 0;
+      const currentKw = solarData.current?.plantTotal?.currentKw ??
+        (solarData.current?.inverters?.reduce((s, i) => s + (i.periodKwh || 0) * 12, 0) ?? 0);
+
+      return `
+        <div class="hero-slide">
+          <div class="hero-left">
+            <div class="hero-label">MIS Solar Array</div>
+            <div class="hero-number">${Number(totalMwh).toLocaleString('en', {maximumFractionDigits: 1})}</div>
+            <div class="hero-unit">Megawatt-hours generated</div>
+            <div class="hero-subtitle">Clean energy powering our campus</div>
+          </div>
+          <div class="hero-right">
+            <div class="hero-stat-card">
+              <div class="hero-stat-label">Today's Production</div>
+              <div class="hero-stat-value amber">${todayKwh.toFixed(1)} kWh</div>
+            </div>
+            <div class="hero-stat-card">
+              <div class="hero-stat-label">Current Output</div>
+              <div class="hero-stat-value green">${currentKw.toFixed(1)} kW</div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function buildCO2Slide() {
+      const todayKwh = solarData.today?.totalKwh ?? 0;
+      const co2Kg = todayKwh * 0.38;
+      const trees = Math.round(co2Kg / (22 / 365));
+      const carKm = Math.round(co2Kg / 0.12);
+      const totalMwh = solarData.current?.plantTotal?.totMwhOut ?? 0;
+      const lifetimeTonnes = (totalMwh * 1000 * 0.38 / 1000).toFixed(1);
+
+      return `
+        <div class="co2-slide">
+          <div class="co2-main">
+            <div class="co2-icon">🌱</div>
+            <div class="co2-number">${co2Kg.toFixed(1)} kg</div>
+            <div class="co2-label">CO₂ Avoided Today</div>
+          </div>
+          <div class="co2-equivalents">
+            <div class="co2-equiv-card">
+              <div class="co2-equiv-emoji">🌳</div>
+              <div class="co2-equiv-value">${trees.toLocaleString()}</div>
+              <div class="co2-equiv-label">trees' daily absorption</div>
+            </div>
+            <div class="co2-equiv-card">
+              <div class="co2-equiv-emoji">🚗</div>
+              <div class="co2-equiv-value">${carKm.toLocaleString()} km</div>
+              <div class="co2-equiv-label">of driving avoided</div>
+            </div>
+          </div>
+          <div class="co2-lifetime">Lifetime: <strong>${lifetimeTonnes} tonnes</strong> CO₂ avoided</div>
+        </div>`;
+    }
+
+    function buildComparisonSlide() {
+      const todayKwh = solarData.today?.totalKwh ?? 0;
+      // MIS has ~60 classrooms; avg classroom uses ~3-5 kWh/day for lights+devices
+      const classroomDailyKwh = 4;
+      const classrooms = Math.round(todayKwh / classroomDailyKwh);
+
+      return `
+        <div class="comparison-slide">
+          <div class="comparison-headline">Today's solar energy could power</div>
+          <div class="comparison-big">
+            <div class="comparison-number">${classrooms}</div>
+            <div class="comparison-unit">classrooms for the day</div>
+          </div>
+          <div class="comparison-context">
+            Every kilowatt-hour from our panels is one less from the grid.<br>
+            Turn off lights when you leave — make our solar go even further!
+          </div>
+        </div>`;
+    }
+
+    function buildHistorySlide() {
+      const days = solarData.history?.days ?? [];
+      if (!days.length) return null;
+
+      const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
+      const maxKwh = Math.max(...sorted.map(d => d.totalKwh || 0), 1);
+      const avgKwh = sorted.reduce((s, d) => s + (d.totalKwh || 0), 0) / sorted.length;
+      const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+      const bars = sorted.map(d => {
+        const pct = ((d.totalKwh || 0) / maxKwh * 100);
+        const dt = new Date(d.date + 'T00:00:00');
+        const day = weekdays[dt.getDay()];
+        return `
+          <div class="history-bar-group">
+            <div class="history-bar-value">${(d.totalKwh || 0).toFixed(0)}</div>
+            <div class="history-bar" style="height: ${Math.max(pct, 2)}%"></div>
+            <div class="history-bar-label">${day}</div>
+          </div>`;
+      }).join('');
+
+      return `
+        <div class="history-slide">
+          <div class="history-title">Last 7 Days Production (kWh)</div>
+          <div class="history-bars">${bars}</div>
+          <div class="history-avg">Daily average: <strong>${avgKwh.toFixed(0)} kWh</strong></div>
+        </div>`;
+    }
+
+    function buildTipSlide() {
+      const tips = signageConfig.tips ?? [];
+      if (!tips.length) return null;
+      // Cycle through tips based on day-of-year
+      const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+      const tip = tips[dayOfYear % tips.length];
+
+      return `
+        <div class="tip-slide">
+          <div class="tip-badge">💡 Energy Tip of the Day</div>
+          <div class="tip-icon">💡</div>
+          <div class="tip-text">${escapeHtml(tip)}</div>
+          <div class="tip-footer">Small changes, big impact — every watt counts</div>
+        </div>`;
+    }
+
+    function buildChallengeSlide() {
+      const challenges = signageConfig.challenges ?? [];
+      if (!challenges.length) return null;
+
+      // Find current week's challenge
+      const now = new Date();
+      const currentChallenge = challenges.find(c => {
+        const start = new Date(c.weekStart);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 7);
+        return now >= start && now < end;
+      });
+
+      // Fallback: cycle by week number
+      const weekNum = Math.floor((Date.now() - new Date(now.getFullYear(), 0, 1)) / 604800000);
+      const challenge = currentChallenge || challenges[weekNum % challenges.length];
+      const text = typeof challenge === 'string' ? challenge : challenge?.text ?? '';
+      if (!text) return null;
+
+      return `
+        <div class="challenge-slide">
+          <div class="challenge-badge">🌍 Green Challenge of the Week</div>
+          <div class="challenge-icon">🌍</div>
+          <div class="challenge-text">${escapeHtml(text)}</div>
+          <div class="challenge-week">Join the MIS community in making a difference</div>
+        </div>`;
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // ── Slide Management ────────────────────
+    function buildSlides() {
+      const container = document.getElementById('slidesContainer');
+      const indicators = document.getElementById('slideIndicators');
+      const enabled = signageConfig.enabledSlides ?? {};
+
+      const builders = [
+        { key: 'hero', fn: buildHeroSlide },
+        { key: 'co2', fn: buildCO2Slide },
+        { key: 'comparison', fn: buildComparisonSlide },
+        { key: 'history', fn: buildHistorySlide },
+        { key: 'tip', fn: buildTipSlide },
+        { key: 'challenge', fn: buildChallengeSlide },
+      ];
+
+      const slides = [];
+      builders.forEach(({ key, fn }) => {
+        // Default to enabled if not configured
+        if (enabled[key] === false) return;
+        const html = fn();
+        if (html) slides.push(html);
+      });
+
+      container.innerHTML = slides.map((html, i) =>
+        `<div class="slide ${i === 0 ? 'active' : ''}">${html}</div>`
+      ).join('');
+
+      indicators.innerHTML = slides.map((_, i) =>
+        `<div class="slide-dot ${i === 0 ? 'active' : ''}"></div>`
+      ).join('');
+
+      slideCount = slides.length;
+      currentSlide = 0;
+    }
+
+    function nextSlide() {
+      if (slideCount <= 1) return;
+      const slides = document.querySelectorAll('.slide');
+      const dots = document.querySelectorAll('.slide-dot');
+
+      slides[currentSlide]?.classList.remove('active');
+      dots[currentSlide]?.classList.remove('active');
+
+      currentSlide = (currentSlide + 1) % slideCount;
+
+      slides[currentSlide]?.classList.add('active');
+      dots[currentSlide]?.classList.add('active');
+    }
+
+    function startSlideshow() {
+      if (slideTimer) clearInterval(slideTimer);
+      slideTimer = setInterval(nextSlide, SLIDE_INTERVAL_MS);
+    }
+
+    // ── Initialization ──────────────────────
+    async function init() {
+      const ok = await loadAllData();
+      if (!ok) {
+        document.getElementById('loadingState').innerHTML =
+          '<div style="color: rgba(255,255,255,0.5);">Unable to load solar data. Retrying...</div>';
+        setTimeout(init, 10000);
+        return;
+      }
+
+      buildSlides();
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('mainContent').style.display = 'flex';
+      startSlideshow();
+
+      // Refresh data periodically
+      setInterval(async () => {
+        await loadAllData();
+        buildSlides();
+        startSlideshow();
+      }, DATA_REFRESH_MS);
+    }
+
+    init();
+  </script>
+</body>
+</html>
