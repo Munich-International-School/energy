@@ -20,3 +20,22 @@ Embed on any page with:
 
 ## Configuration
 Content (tips, challenges, slide visibility) is managed from the MIS Admin panel under **Solar Digital Signage**.
+
+## Deployment & Secrets
+
+This site is deployed via GitHub Actions. The API key is **never stored in the repository** — it is injected at deploy time from a GitHub Secret.
+
+### Required GitHub Secret
+
+| Secret name | Description |
+|---|---|
+| `SOLAR_API_KEY` | API key for the Firebase Cloud Functions solar API |
+
+To set or rotate the key:
+1. Go to **Settings → Secrets and variables → Actions** in this repository.
+2. Create or update the secret named `SOLAR_API_KEY`.
+3. Push any commit to `main` (or run the workflow manually) to redeploy with the new key.
+
+### GitHub Pages source
+
+In **Settings → Pages**, set the **Source** to **GitHub Actions** so the deployment workflow controls which build is published.

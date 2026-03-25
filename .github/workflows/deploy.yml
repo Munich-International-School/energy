@@ -1,0 +1,58 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Inject API key from secret
+        run: |
+          python3 - <<'EOF'
+          import os, sys
+          key = os.environ['SOLAR_API_KEY']
+          if not key:
+              print('Error: SOLAR_API_KEY secret is not set or is empty', file=sys.stderr)
+              sys.exit(1)
+          for fname in ['widget.html', 'signage.html']:
+              with open(fname) as f:
+                  content = f.read()
+              if '%%SOLAR_API_KEY%%' not in content:
+                  print(f'Error: placeholder %%SOLAR_API_KEY%% not found in {fname}', file=sys.stderr)
+                  sys.exit(1)
+              with open(fname, 'w') as f:
+                  f.write(content.replace('%%SOLAR_API_KEY%%', key))
+          EOF
+        env:
+          SOLAR_API_KEY: ${{ secrets.SOLAR_API_KEY }}
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
