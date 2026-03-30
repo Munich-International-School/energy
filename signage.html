@@ -515,13 +515,13 @@
     async function loadAllData() {
       try {
         const [current, today, history, config] = await Promise.all([
-          apiFetch('current').catch(err => { console.warn('current data failed', err); return {}; }),
-          apiFetch('today').catch(err => { console.warn('today data failed', err); return {}; }),
-          apiFetch('history?days=7').catch(err => { console.warn('history data failed', err); return { days: [] }; }),
-          apiFetch('signage-config').catch(err => { console.warn('signage-config failed', err); return {}; }),
+          apiFetch('current'),
+          apiFetch('today'),
+          apiFetch('history?days=7').catch(() => ({ days: [] })),
+          apiFetch('signage-config').catch(() => ({})),
         ]);
         solarData = { current, today, history };
-        signageConfig = (config && config.config) ? config.config : {};
+        signageConfig = config?.config ?? {};
         return true;
       } catch (err) {
         console.error('Data load error:', err);
@@ -617,14 +617,7 @@
 
     function buildHistorySlide() {
       const days = (solarData.history?.days ?? []).filter(d => d && d.date);
-      if (!days.length) {
-        // At least render a message when history is unavailable
-        return `
-          <div class="history-slide">
-            <div class="history-title">Last 7 Days Production (kWh)</div>
-            <div class="history-bars" style="justify-content:center; color:rgba(255,255,255,0.5);">History data unavailable</div>
-          </div>`;
-      }
+      if (!days.length) return null;
 
       const sorted = [...days].sort((a, b) => (a.date || '').localeCompare(b.date));
       const maxKwh = Math.max(...sorted.map(d => clampValue(d.totalKwh)), 1);

@@ -234,9 +234,9 @@
     async function loadWidget() {
       try {
         const [current, today, history] = await Promise.all([
-          apiFetch('current').catch(err => { console.warn('current failed', err); return {}; }),
-          apiFetch('today').catch(err => { console.warn('today failed', err); return {}; }),
-          apiFetch('history?days=7').catch(err => { console.warn('history failed', err); return { days: [] }; }),
+          apiFetch('current'),
+          apiFetch('today'),
+          apiFetch('history?days=7').catch(() => ({ days: [] })),
         ]);
 
         const totalMwh = clampValue(current.plantTotal?.totMwhOut);
