@@ -498,17 +498,30 @@
       return res.json();
     }
 
+    // ── Utility Helpers ─────────────────────
+    function clampValue(value, min = 0) {
+      const num = Number(value);
+      return Number.isFinite(num) && num >= min ? num : 0;
+    }
+
+    function safeDivide(numerator, denominator, fallback = 0) {
+      const num = Number(numerator);
+      const den = Number(denominator);
+      if (!Number.isFinite(num) || !Number.isFinite(den) || den === 0) return fallback;
+      return num / den;
+    }
+
     // ── Data Loading ────────────────────────
     async function loadAllData() {
       try {
         const [current, today, history, config] = await Promise.all([
-          apiFetch('current'),
-          apiFetch('today'),
-          apiFetch('history?days=7'),
-          apiFetch('signage-config'),
+          apiFetch('current').catch(err => { console.warn('current data failed', err); return {}; }),
+          apiFetch('today').catch(err => { console.warn('today data failed', err); return {}; }),
+          apiFetch('history?days=7').catch(err => { console.warn('history data failed', err); return { days: [] }; }),
+          apiFetch('signage-config').catch(err => { console.warn('signage-config failed', err); return {}; }),
         ]);
         solarData = { current, today, history };
-        signageConfig = config.config || {};
+        signageConfig = (config && config.config) ? config.config : {};
         return true;
       } catch (err) {
         console.error('Data load error:', err);
@@ -518,10 +531,17 @@
 
     // ── Slide Builders ──────────────────────
     function buildHeroSlide() {
-      const totalMwh = solarData.current?.plantTotal?.totMwhOut ?? 0;
-      const todayKwh = solarData.today?.totalKwh ?? 0;
-      const currentKw = solarData.current?.plantTotal?.currentKw ??
-        (solarData.current?.inverters?.reduce((s, i) => s + (i.periodKwh || 0) * 12, 0) ?? 0);
+      const totalMwh = clampValue(solarData.current?.plantTotal?.totMwhOut);
+      const todayKwh = clampValue(solarData.today?.totalKwh);
+      // Prefer reliable currentKw from plantTotal; fallback to inverter estimates
+      const inverterKw = (solarData.current?.inverters ?? []).reduce((s, inverter) => {
+        const periodKwh = clampValue(inverter.periodKwh);
+        const invKw = clampValue(inverter.currentKw);
+        if (invKw > 0) return s + invKw;
+        // if periodKwh comes in 5m bucket, convert to kW by x12, otherwise preserve
+        return s + (periodKwh * 12);
+      }, 0);
+      const currentKw = clampValue(solarData.current?.plantTotal?.currentKw ?? inverterKw);
 
       return `
         <div class="hero-slide">
@@ -545,12 +565,12 @@
     }
 
     function buildCO2Slide() {
-      const todayKwh = solarData.today?.totalKwh ?? 0;
-      const co2Kg = todayKwh * 0.38;
+      const todayKwh = clampValue(solarData.today?.totalKwh);
+      const co2Kg = Math.max(0, todayKwh * 0.38);
       const trees = Math.round(co2Kg / (22 / 365));
       const carKm = Math.round(co2Kg / 0.12);
-      const totalMwh = solarData.current?.plantTotal?.totMwhOut ?? 0;
-      const lifetimeTonnes = (totalMwh * 1000 * 0.38 / 1000).toFixed(1);
+      const totalMwh = clampValue(solarData.current?.plantTotal?.totMwhOut);
+      const lifetimeTonnes = (totalMwh * 0.38).toFixed(1);
 
       return `
         <div class="co2-slide">
@@ -576,7 +596,7 @@
     }
 
     function buildComparisonSlide() {
-      const todayKwh = solarData.today?.totalKwh ?? 0;
+      const todayKwh = clampValue(solarData.today?.totalKwh);
       // MIS has ~60 classrooms; avg classroom uses ~3-5 kWh/day for lights+devices
       const classroomDailyKwh = 4;
       const classrooms = Math.round(todayKwh / classroomDailyKwh);
@@ -596,12 +616,19 @@
     }
 
     function buildHistorySlide() {
-      const days = solarData.history?.days ?? [];
-      if (!days.length) return null;
+      const days = (solarData.history?.days ?? []).filter(d => d && d.date);
+      if (!days.length) {
+        // At least render a message when history is unavailable
+        return `
+          <div class="history-slide">
+            <div class="history-title">Last 7 Days Production (kWh)</div>
+            <div class="history-bars" style="justify-content:center; color:rgba(255,255,255,0.5);">History data unavailable</div>
+          </div>`;
+      }
 
-      const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
-      const maxKwh = Math.max(...sorted.map(d => d.totalKwh || 0), 1);
-      const avgKwh = sorted.reduce((s, d) => s + (d.totalKwh || 0), 0) / sorted.length;
+      const sorted = [...days].sort((a, b) => (a.date || '').localeCompare(b.date));
+      const maxKwh = Math.max(...sorted.map(d => clampValue(d.totalKwh)), 1);
+      const avgKwh = sorted.reduce((s, d) => s + clampValue(d.totalKwh), 0) / sorted.length;
       const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
       const bars = sorted.map(d => {
@@ -745,9 +772,11 @@
 
       // Refresh data periodically
       setInterval(async () => {
-        await loadAllData();
-        buildSlides();
-        startSlideshow();
+        const refreshed = await loadAllData();
+        if (refreshed) {
+          buildSlides();
+          startSlideshow();
+        }
       }, DATA_REFRESH_MS);
     }
 

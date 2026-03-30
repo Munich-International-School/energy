@@ -212,6 +212,11 @@
 
     let detailOpen = false;
 
+    function clampValue(value, min = 0) {
+      const num = Number(value);
+      return Number.isFinite(num) && num >= min ? num : 0;
+    }
+
     async function apiFetch(endpoint) {
       const res = await fetch(`${API_BASE}/${endpoint}`, {
         headers: { 'x-api-key': API_KEY }
@@ -229,23 +234,28 @@
     async function loadWidget() {
       try {
         const [current, today, history] = await Promise.all([
-          apiFetch('current'),
-          apiFetch('today'),
-          apiFetch('history?days=7'),
+          apiFetch('current').catch(err => { console.warn('current failed', err); return {}; }),
+          apiFetch('today').catch(err => { console.warn('today failed', err); return {}; }),
+          apiFetch('history?days=7').catch(err => { console.warn('history failed', err); return { days: [] }; }),
         ]);
 
-        const totalMwh = current.plantTotal?.totMwhOut ?? 0;
-        const todayKwh = today.totalKwh ?? 0;
+        const totalMwh = clampValue(current.plantTotal?.totMwhOut);
+        const todayKwh = clampValue(today.totalKwh);
         const co2Kg = (todayKwh * 0.38).toFixed(1);
-        const currentKw = current.plantTotal?.currentKw ??
-          (current.inverters?.reduce((s, i) => s + (i.periodKwh || 0) * 12, 0) ?? 0);
-        const lifetimeCo2 = (totalMwh * 1000 * 0.38 / 1000).toFixed(1);
-        const days = history.days ?? [];
+        const inverterKw = (current.inverters ?? []).reduce((s, inverter) => {
+          const periodKwh = clampValue(inverter.periodKwh);
+          const invKw = clampValue(inverter.currentKw);
+          if (invKw > 0) return s + invKw;
+          return s + (periodKwh * 12);
+        }, 0);
+        const currentKw = clampValue(current.plantTotal?.currentKw ?? inverterKw);
+        const lifetimeCo2 = (totalMwh * 0.38).toFixed(1);
+        const days = Array.isArray(history.days) ? history.days : [];
         const avgKwh = days.length
-          ? (days.reduce((s, d) => s + (d.totalKwh || 0), 0) / days.length).toFixed(0)
+          ? (days.reduce((s, d) => s + clampValue(d.totalKwh), 0) / days.length).toFixed(0)
           : '—';
-        const trees = Math.round(todayKwh * 0.38 / (22 / 365));
-        const carKm = Math.round(todayKwh * 0.38 / 0.12);
+        const trees = Math.round(clampValue(todayKwh * 0.38) / (22 / 365));
+        const carKm = Math.round(clampValue(todayKwh * 0.38) / 0.12);
 
         // Count healthy inverters
         const inverters = current.inverters ?? [];
