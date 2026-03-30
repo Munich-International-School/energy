@@ -498,30 +498,17 @@
       return res.json();
     }
 
-    // ── Utility Helpers ─────────────────────
-    function clampValue(value, min = 0) {
-      const num = Number(value);
-      return Number.isFinite(num) && num >= min ? num : 0;
-    }
-
-    function safeDivide(numerator, denominator, fallback = 0) {
-      const num = Number(numerator);
-      const den = Number(denominator);
-      if (!Number.isFinite(num) || !Number.isFinite(den) || den === 0) return fallback;
-      return num / den;
-    }
-
     // ── Data Loading ────────────────────────
     async function loadAllData() {
       try {
         const [current, today, history, config] = await Promise.all([
           apiFetch('current'),
           apiFetch('today'),
-          apiFetch('history?days=7').catch(() => ({ days: [] })),
+          apiFetch('history?days=7').catch(() => ({ entries: [], days: [] })),
           apiFetch('signage-config').catch(() => ({})),
         ]);
         solarData = { current, today, history };
-        signageConfig = config?.config ?? {};
+        signageConfig = config.config || {};
         return true;
       } catch (err) {
         console.error('Data load error:', err);
@@ -529,19 +516,52 @@
       }
     }
 
+    // ── Data Helpers ────────────────────────
+    // The API's plantTotal and today endpoint return bad data:
+    //   - plantTotal has all zeros
+    //   - today.totalKwh contains cumulative lifetime values, not daily
+    // So we derive correct values from individual inverters.
+
+    function getRealInverters() {
+      return (solarData.current?.inverters ?? []).filter(
+        i => i.inverterId !== 'plant_total'
+      );
+    }
+
+    function getLifetimeMwh() {
+      return getRealInverters().reduce((s, i) => s + (i.totMwhOut || 0), 0);
+    }
+
+    function getCurrentKw() {
+      // periodKwh is energy in a 5-minute bucket; multiply by 12 to get kW
+      return getRealInverters().reduce((s, i) => s + (i.periodKwh || 0) * 12, 0);
+    }
+
+    function getTodayKwh() {
+      // The today endpoint per-inverter values are unreliable (can be cumulative).
+      // Sanity check: a single school inverter maxes out around 50-80 kWh/day.
+      // If any inverter reports > 200 kWh for "today", it's clearly cumulative junk.
+      const todayInverters = solarData.today?.inverters ?? {};
+      let total = 0;
+      let anyBad = false;
+      for (const [id, data] of Object.entries(todayInverters)) {
+        if ((data.kwh || 0) > 200) { anyBad = true; break; }
+        total += (data.kwh || 0);
+      }
+      if (anyBad) {
+        // Fall back to estimating from current output × hours of daylight so far
+        const now = new Date();
+        const hoursSinceSunrise = Math.max(0, now.getHours() + now.getMinutes() / 60 - 6);
+        return getCurrentKw() * Math.min(hoursSinceSunrise, 12) * 0.6; // 0.6 = avg capacity factor
+      }
+      return total;
+    }
+
     // ── Slide Builders ──────────────────────
     function buildHeroSlide() {
-      const totalMwh = clampValue(solarData.current?.plantTotal?.totMwhOut);
-      const todayKwh = clampValue(solarData.today?.totalKwh);
-      // Prefer reliable currentKw from plantTotal; fallback to inverter estimates
-      const inverterKw = (solarData.current?.inverters ?? []).reduce((s, inverter) => {
-        const periodKwh = clampValue(inverter.periodKwh);
-        const invKw = clampValue(inverter.currentKw);
-        if (invKw > 0) return s + invKw;
-        // if periodKwh comes in 5m bucket, convert to kW by x12, otherwise preserve
-        return s + (periodKwh * 12);
-      }, 0);
-      const currentKw = clampValue(solarData.current?.plantTotal?.currentKw ?? inverterKw);
+      const totalMwh = getLifetimeMwh();
+      const todayKwh = getTodayKwh();
+      const currentKw = getCurrentKw();
 
       return `
         <div class="hero-slide">
@@ -565,11 +585,11 @@
     }
 
     function buildCO2Slide() {
-      const todayKwh = clampValue(solarData.today?.totalKwh);
-      const co2Kg = Math.max(0, todayKwh * 0.38);
+      const todayKwh = getTodayKwh();
+      const co2Kg = todayKwh * 0.38;
       const trees = Math.round(co2Kg / (22 / 365));
       const carKm = Math.round(co2Kg / 0.12);
-      const totalMwh = clampValue(solarData.current?.plantTotal?.totMwhOut);
+      const totalMwh = getLifetimeMwh();
       const lifetimeTonnes = (totalMwh * 0.38).toFixed(1);
 
       return `
@@ -596,7 +616,7 @@
     }
 
     function buildComparisonSlide() {
-      const todayKwh = clampValue(solarData.today?.totalKwh);
+      const todayKwh = getTodayKwh();
       // MIS has ~60 classrooms; avg classroom uses ~3-5 kWh/day for lights+devices
       const classroomDailyKwh = 4;
       const classrooms = Math.round(todayKwh / classroomDailyKwh);
@@ -616,12 +636,12 @@
     }
 
     function buildHistorySlide() {
-      const days = (solarData.history?.days ?? []).filter(d => d && d.date);
+      const days = (solarData.history?.days ?? solarData.history?.entries ?? []).filter(d => d && d.date);
       if (!days.length) return null;
 
-      const sorted = [...days].sort((a, b) => (a.date || '').localeCompare(b.date));
-      const maxKwh = Math.max(...sorted.map(d => clampValue(d.totalKwh)), 1);
-      const avgKwh = sorted.reduce((s, d) => s + clampValue(d.totalKwh), 0) / sorted.length;
+      const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
+      const maxKwh = Math.max(...sorted.map(d => d.totalKwh || 0), 1);
+      const avgKwh = sorted.reduce((s, d) => s + (d.totalKwh || 0), 0) / sorted.length;
       const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
       const bars = sorted.map(d => {
@@ -765,11 +785,9 @@
 
       // Refresh data periodically
       setInterval(async () => {
-        const refreshed = await loadAllData();
-        if (refreshed) {
-          buildSlides();
-          startSlideshow();
-        }
+        await loadAllData();
+        buildSlides();
+        startSlideshow();
       }, DATA_REFRESH_MS);
     }
 

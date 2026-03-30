@@ -212,11 +212,6 @@
 
     let detailOpen = false;
 
-    function clampValue(value, min = 0) {
-      const num = Number(value);
-      return Number.isFinite(num) && num >= min ? num : 0;
-    }
-
     async function apiFetch(endpoint) {
       const res = await fetch(`${API_BASE}/${endpoint}`, {
         headers: { 'x-api-key': API_KEY }
@@ -236,30 +231,44 @@
         const [current, today, history] = await Promise.all([
           apiFetch('current'),
           apiFetch('today'),
-          apiFetch('history?days=7').catch(() => ({ days: [] })),
+          apiFetch('history?days=7').catch(() => ({ entries: [], days: [] })),
         ]);
 
-        const totalMwh = clampValue(current.plantTotal?.totMwhOut);
-        const todayKwh = clampValue(today.totalKwh);
-        const co2Kg = (todayKwh * 0.38).toFixed(1);
-        const inverterKw = (current.inverters ?? []).reduce((s, inverter) => {
-          const periodKwh = clampValue(inverter.periodKwh);
-          const invKw = clampValue(inverter.currentKw);
-          if (invKw > 0) return s + invKw;
-          return s + (periodKwh * 12);
-        }, 0);
-        const currentKw = clampValue(current.plantTotal?.currentKw ?? inverterKw);
-        const lifetimeCo2 = (totalMwh * 0.38).toFixed(1);
-        const days = Array.isArray(history.days) ? history.days : [];
-        const avgKwh = days.length
-          ? (days.reduce((s, d) => s + clampValue(d.totalKwh), 0) / days.length).toFixed(0)
-          : '—';
-        const trees = Math.round(clampValue(todayKwh * 0.38) / (22 / 365));
-        const carKm = Math.round(clampValue(todayKwh * 0.38) / 0.12);
+        // The API's plantTotal and today endpoint return bad data:
+        //   - plantTotal has all zeros
+        //   - today.totalKwh contains cumulative lifetime values, not daily
+        // So we derive correct values from individual inverters.
+        const realInverters = (current.inverters ?? []).filter(
+          i => i.inverterId !== 'plant_total'
+        );
+        const totalMwh = realInverters.reduce((s, i) => s + (i.totMwhOut || 0), 0);
+        const currentKw = realInverters.reduce((s, i) => s + (i.periodKwh || 0) * 12, 0);
 
-        // Count healthy inverters
-        const inverters = current.inverters ?? [];
-        const healthyCount = inverters.filter(i => i.health === 'Ok' || i.health === 'normal').length;
+        // Sanity-check today endpoint: if any inverter reports > 200 kWh, it's cumulative junk
+        const todayInverters = today.inverters ?? {};
+        let todayKwh = 0;
+        let anyBad = false;
+        for (const [id, data] of Object.entries(todayInverters)) {
+          if ((data.kwh || 0) > 200) { anyBad = true; break; }
+          todayKwh += (data.kwh || 0);
+        }
+        if (anyBad) {
+          const now = new Date();
+          const hoursSinceSunrise = Math.max(0, now.getHours() + now.getMinutes() / 60 - 6);
+          todayKwh = currentKw * Math.min(hoursSinceSunrise, 12) * 0.6;
+        }
+
+        const co2Kg = (todayKwh * 0.38).toFixed(1);
+        const lifetimeCo2 = (totalMwh * 0.38).toFixed(1);
+        const days = (history.days ?? history.entries ?? []).filter(d => d && d.date);
+        const avgKwh = days.length
+          ? (days.reduce((s, d) => s + (d.totalKwh || 0), 0) / days.length).toFixed(0)
+          : '—';
+        const trees = Math.round(todayKwh * 0.38 / (22 / 365));
+        const carKm = Math.round(todayKwh * 0.38 / 0.12);
+
+        // Count healthy inverters (exclude plant_total)
+        const healthyCount = realInverters.filter(i => i.health === 'Ok' || i.health === 'normal').length;
 
         const widget = document.getElementById('solarWidget');
         widget.innerHTML = `
@@ -311,7 +320,7 @@
               </div>
               <div class="widget-detail-row">
                 <span class="widget-detail-label">🔌 Inverters</span>
-                <span class="widget-detail-value">${healthyCount}/${inverters.length} online</span>
+                <span class="widget-detail-value">${healthyCount}/${realInverters.length} online</span>
               </div>
               <div class="widget-brand">
                 Powered by <strong>MIS</strong> Solar Array
