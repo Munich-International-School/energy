@@ -260,7 +260,9 @@
 
         const co2Kg = (todayKwh * 0.38).toFixed(1);
         const lifetimeCo2 = (totalMwh * 0.38).toFixed(1);
-        const days = (history.days ?? history.entries ?? []).filter(d => d && d.date);
+        const rawDays = history.days;
+        const rawEntries = history.entries;
+        const days = (Array.isArray(rawDays) ? rawDays : Array.isArray(rawEntries) ? rawEntries : []).filter(d => d && d.date);
         const avgKwh = days.length
           ? (days.reduce((s, d) => s + (d.totalKwh || 0), 0) / days.length).toFixed(0)
           : '—';

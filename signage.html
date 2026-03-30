@@ -636,7 +636,9 @@
     }
 
     function buildHistorySlide() {
-      const days = (solarData.history?.days ?? solarData.history?.entries ?? []).filter(d => d && d.date);
+      const rawDays = solarData.history?.days;
+      const rawEntries = solarData.history?.entries;
+      const days = (Array.isArray(rawDays) ? rawDays : Array.isArray(rawEntries) ? rawEntries : []).filter(d => d && d.date);
       if (!days.length) return null;
 
       const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
@@ -778,7 +780,7 @@
         return;
       }
 
-      buildSlides();
+      try { buildSlides(); } catch (e) { console.error('Slide build error:', e); }
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('mainContent').style.display = 'flex';
       startSlideshow();
