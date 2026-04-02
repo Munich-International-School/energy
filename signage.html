@@ -434,6 +434,101 @@
       animation: spin 1s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Chart Slides ────────────────────── */
+    .chart-slide {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 1100px;
+      gap: 24px;
+    }
+    .chart-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 28px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.8);
+    }
+    .chart-header-sub {
+      font-size: 15px;
+      font-weight: 400;
+      color: rgba(255,255,255,0.3);
+      margin-left: 8px;
+    }
+
+    /* Today's Generation SVG */
+    .gen-chart { width: 100%; max-height: 340px; }
+    .gen-line { stroke-dasharray: 3000; stroke-dashoffset: 3000; }
+    .slide.active .gen-line { animation: drawLine 2s ease-out forwards; }
+    .gen-area { opacity: 0; }
+    .slide.active .gen-area { animation: fadeIn 1.2s ease-out 0.6s forwards; }
+    .gen-dot { opacity: 0; }
+    .slide.active .gen-dot { animation: fadeIn 0.3s ease-out 1.6s forwards; }
+    .gen-dot-pulse { opacity: 0; }
+    .slide.active .gen-dot-pulse {
+      animation: fadeIn 0.3s ease-out 1.6s forwards, pulseDot 2s ease-in-out 2s infinite;
+    }
+    @keyframes drawLine { to { stroke-dashoffset: 0; } }
+    @keyframes fadeIn   { to { opacity: 1; } }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 0.5; r: 5; }
+      50%      { opacity: 0;   r: 16; }
+    }
+
+    /* Chart KPI footer */
+    .chart-footer-row { display: flex; gap: 48px; }
+    .chart-kpi { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .chart-kpi-value { font-size: 36px; font-weight: 800; }
+    .chart-kpi-value.amber { color: var(--amber); }
+    .chart-kpi-value.green { color: var(--emerald); }
+    .chart-kpi-value.blue  { color: var(--mis-light-blue); }
+    .chart-kpi-label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.4);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    /* 7-Day History bars */
+    .hist-body { display: flex; gap: 8px; width: 100%; height: 300px; }
+    .hist-yaxis {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 0 4px 34px 0;
+      font-size: 12px;
+      color: rgba(255,255,255,0.25);
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      min-width: 36px;
+    }
+    .hist-bars {
+      flex: 1;
+      display: flex;
+      align-items: stretch;
+      gap: 14px;
+      padding: 0 8px 0 4px;
+      border-left: 1px solid rgba(255,255,255,0.08);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .hist-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .hist-val { font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.6); opacity: 0; }
+    .slide.active .hist-val { animation: fadeIn 0.3s ease-out forwards; animation-delay: var(--d, 0s); }
+    .hist-track { flex: 1; width: 100%; max-width: 80px; display: flex; align-items: flex-end; }
+    .hist-fill {
+      width: 100%;
+      border-radius: 6px 6px 2px 2px;
+      background: linear-gradient(to top, rgba(16,185,129,0.45), var(--emerald));
+      height: 0;
+      min-height: 3px;
+    }
+    .slide.active .hist-fill { animation: growBar 0.8s ease-out forwards; animation-delay: var(--d, 0s); }
+    .hist-day { font-size: 12px; color: rgba(255,255,255,0.4); font-weight: 500; white-space: nowrap; }
+    @keyframes growBar { to { height: var(--h, 0%); } }
   </style>
 </head>
 <body>
@@ -558,6 +653,91 @@
     }
 
     // ── Slide Builders ──────────────────────
+
+    function buildTodayChartSlide() {
+      const currentKw = getCurrentKw();
+      const now = new Date();
+      const currentHour = now.getHours() + now.getMinutes() / 60;
+      const sunrise = 6.5, sunset = 19.5, dayLen = sunset - sunrise;
+
+      // Estimate peak kW from current position on sine curve
+      let peakKw = 30;
+      if (currentHour > sunrise && currentHour < sunset && currentKw > 0.3) {
+        const sinVal = Math.sin(((currentHour - sunrise) / dayLen) * Math.PI);
+        if (sinVal > 0.05) peakKw = currentKw / sinVal;
+      }
+      peakKw = Math.max(peakKw, currentKw * 1.2, 10);
+      const yMax = Math.ceil(peakKw * 1.15);
+
+      const W = 960, H = 300, pL = 52, pR = 12, pT = 12, pB = 36;
+      const cW = W - pL - pR, cH = H - pT - pB;
+
+      // Generate estimated solar curve (every 15 min)
+      const pts = [];
+      for (let h = 0; h <= 24; h += 0.25) {
+        let kw = 0;
+        if (h >= sunrise && h <= sunset)
+          kw = peakKw * Math.sin(((h - sunrise) / dayLen) * Math.PI);
+        kw = Math.max(0, kw);
+        pts.push({ x: pL + (h / 24) * cW, y: pT + cH - (kw / yMax) * cH, h, kw });
+      }
+
+      const lineD = pts.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+      const last = pts[pts.length - 1];
+      const areaD = lineD + ` L${last.x.toFixed(1)},${pT + cH} L${pL},${pT + cH} Z`;
+
+      // Current time marker
+      const nx = pL + (currentHour / 24) * cW;
+      const cp = pts.reduce((a, b) => Math.abs(b.h - currentHour) < Math.abs(a.h - currentHour) ? b : a);
+
+      // Grid
+      const gridN = 4;
+      const grid = Array.from({length: gridN + 1}, (_, i) => {
+        const v = Math.round((yMax / gridN) * i);
+        const y = pT + cH - (v / yMax) * cH;
+        return `<line x1="${pL}" y1="${y}" x2="${pL + cW}" y2="${y}" stroke="rgba(255,255,255,0.06)"/><text x="${pL - 8}" y="${y + 4}" text-anchor="end" fill="rgba(255,255,255,0.25)" font-size="11" font-family="Inter,sans-serif">${v}</text>`;
+      }).join('');
+
+      const ticks = [0, 3, 6, 9, 12, 15, 18, 21].map(h =>
+        `<text x="${pL + (h / 24) * cW}" y="${H - 8}" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="11" font-family="Inter,sans-serif">${String(h).padStart(2,'0')}:00</text>`
+      ).join('');
+
+      const todayKwh = getTodayKwh();
+      const kwLabel = currentKw > 0
+        ? `<text x="${nx + (nx > pL + cW * 0.6 ? -14 : 14)}" y="${cp.y - 14}" text-anchor="${nx > pL + cW * 0.6 ? 'end' : 'start'}" fill="var(--amber)" font-size="14" font-weight="700" font-family="Inter,sans-serif">${currentKw.toFixed(1)} kW</text>`
+        : '';
+
+      return `
+        <div class="chart-slide">
+          <div class="chart-header">
+            <span class="material-icons" style="font-size:28px;color:var(--amber)">show_chart</span>
+            Today's Generation
+            <span class="chart-header-sub">${now.toLocaleDateString('en', {weekday:'long', month:'short', day:'numeric'})}</span>
+          </div>
+          <svg viewBox="0 0 ${W} ${H}" class="gen-chart" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <linearGradient id="aFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="var(--amber)" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="var(--amber)" stop-opacity="0.01"/>
+              </linearGradient>
+            </defs>
+            ${grid}${ticks}
+            <text x="${pL - 8}" y="${pT}" text-anchor="end" fill="rgba(255,255,255,0.2)" font-size="10" font-family="Inter,sans-serif">kW</text>
+            <path d="${areaD}" fill="url(#aFill)" class="gen-area"/>
+            <path d="${lineD}" fill="none" stroke="var(--amber)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="gen-line"/>
+            <line x1="${nx}" y1="${pT}" x2="${nx}" y2="${pT + cH}" stroke="rgba(255,255,255,0.2)" stroke-dasharray="4 3"/>
+            <circle cx="${nx}" cy="${cp.y}" r="5" fill="var(--amber)" class="gen-dot"/>
+            <circle cx="${nx}" cy="${cp.y}" r="5" fill="var(--amber)" class="gen-dot-pulse"/>
+            ${kwLabel}
+          </svg>
+          <div class="chart-footer-row">
+            <div class="chart-kpi"><span class="chart-kpi-value amber">${todayKwh.toFixed(1)}</span><span class="chart-kpi-label">kWh today (est.)</span></div>
+            <div class="chart-kpi"><span class="chart-kpi-value green">${currentKw.toFixed(1)}</span><span class="chart-kpi-label">kW now</span></div>
+            <div class="chart-kpi"><span class="chart-kpi-value blue">${peakKw.toFixed(0)}</span><span class="chart-kpi-label">kW est. peak</span></div>
+          </div>
+        </div>`;
+    }
+
     function buildHeroSlide() {
       const totalMwh = getLifetimeMwh();
       const todayKwh = getTodayKwh();
@@ -644,25 +824,44 @@
       const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
       const maxKwh = Math.max(...sorted.map(d => d.totalKwh || 0), 1);
       const avgKwh = sorted.reduce((s, d) => s + (d.totalKwh || 0), 0) / sorted.length;
-      const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const niceMax = Math.ceil(maxKwh / 50) * 50 || 100;
 
-      const bars = sorted.map(d => {
-        const pct = ((d.totalKwh || 0) / maxKwh * 100);
+      const yLabels = Array.from({length: 5}, (_, i) => Math.round((niceMax / 4) * (4 - i)))
+        .map(v => `<span>${v}</span>`).join('');
+
+      const bars = sorted.map((d, i) => {
+        const kwh = d.totalKwh || 0;
+        const pct = (kwh / niceMax * 100);
         const dt = new Date(d.date + 'T00:00:00');
-        const day = weekdays[dt.getDay()];
+        const dayLabel = dt.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' });
         return `
-          <div class="history-bar-group">
-            <div class="history-bar-value">${(d.totalKwh || 0).toFixed(0)}</div>
-            <div class="history-bar" style="height: ${Math.max(pct, 2)}%"></div>
-            <div class="history-bar-label">${day}</div>
+          <div class="hist-col" style="--d: ${i * 0.12}s;">
+            <div class="hist-val" style="--d: ${i * 0.12 + 0.4}s;">${kwh.toFixed(0)}</div>
+            <div class="hist-track">
+              <div class="hist-fill" style="--h: ${Math.max(pct, 1)}%; --d: ${i * 0.12}s;"></div>
+            </div>
+            <div class="hist-day">${dayLabel}</div>
           </div>`;
       }).join('');
 
+      const bestDay = Math.max(...sorted.map(d => d.totalKwh || 0));
+
       return `
-        <div class="history-slide">
-          <div class="history-title">Last 7 Days Production (kWh)</div>
-          <div class="history-bars">${bars}</div>
-          <div class="history-avg">Daily average: <strong>${avgKwh.toFixed(0)} kWh</strong></div>
+        <div class="chart-slide">
+          <div class="chart-header">
+            <span class="material-icons" style="font-size:28px;color:var(--emerald)">bar_chart</span>
+            7-Day Production
+            <span class="chart-header-sub">kWh per day</span>
+          </div>
+          <div class="hist-body">
+            <div class="hist-yaxis">${yLabels}<span>0</span></div>
+            <div class="hist-bars">${bars}</div>
+          </div>
+          <div class="chart-footer-row">
+            <div class="chart-kpi"><span class="chart-kpi-value green">${avgKwh.toFixed(0)}</span><span class="chart-kpi-label">avg kWh / day</span></div>
+            <div class="chart-kpi"><span class="chart-kpi-value amber">${bestDay.toFixed(0)}</span><span class="chart-kpi-label">best day</span></div>
+            <div class="chart-kpi"><span class="chart-kpi-value blue">${(avgKwh * 0.38).toFixed(1)}</span><span class="chart-kpi-label">avg kg CO₂ / day</span></div>
+          </div>
         </div>`;
     }
 
@@ -724,6 +923,7 @@
 
       const builders = [
         { key: 'hero', fn: buildHeroSlide },
+        { key: 'todayChart', fn: buildTodayChartSlide },
         { key: 'co2', fn: buildCO2Slide },
         { key: 'comparison', fn: buildComparisonSlide },
         { key: 'history', fn: buildHistorySlide },
