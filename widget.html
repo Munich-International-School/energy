@@ -272,18 +272,35 @@
         const totalMwh = realInverters.reduce((s, i) => s + (i.totMwhOut || 0), 0);
         const currentKw = realInverters.reduce((s, i) => s + (i.periodKwh || 0) * 12, 0);
 
-        // Sanity-check today endpoint: if any inverter reports > 200 kWh, it's cumulative junk
+        // Handle cumulative lifetime data leaking into daily endpoint
         const todayInverters = today.inverters ?? {};
         let todayKwh = 0;
         let anyBad = false;
         for (const [id, data] of Object.entries(todayInverters)) {
-          if ((data.kwh || 0) > 200) { anyBad = true; break; }
+          if ((data.kwh || 0) > 2000) { anyBad = true; break; }
           todayKwh += (data.kwh || 0);
         }
-        if (anyBad) {
+        
+        if (anyBad || todayKwh === 0) {
+          // Fallback 1: Check history for today 
           const now = new Date();
-          const hoursSinceSunrise = Math.max(0, now.getHours() + now.getMinutes() / 60 - 6);
-          todayKwh = currentKw * Math.min(hoursSinceSunrise, 12) * 0.6;
+          const pad = (n) => String(n).padStart(2, '0');
+          const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+          const historyDays = (history?.days || history?.entries || []);
+          const histToday = historyDays.find(d => d.date === todayStr);
+
+          if (histToday && histToday.totalKwh > 0 && histToday.totalKwh < 5000) {
+            todayKwh = histToday.totalKwh;
+          } else {
+            // Fallback 2: Estimate based on 7-day average (important in evenings when kW is 0)
+            const validDays = historyDays.filter(d => (d.totalKwh || 0) > 10 && (d.totalKwh || 0) < 5000);
+            let avgKwh = 350;
+            if (validDays.length > 0) {
+              avgKwh = validDays.reduce((acc, d) => acc + (d.totalKwh || 0), 0) / validDays.length;
+            }
+            const hoursSinceSunrise = Math.max(0, Math.min(12, now.getHours() + now.getMinutes() / 60 - 6));
+            todayKwh = avgKwh * (hoursSinceSunrise / 12);
+          }
         }
 
         const co2Kg = (todayKwh * 0.38).toFixed(1);

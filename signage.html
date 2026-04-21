@@ -660,23 +660,42 @@
     }
 
     function getTodayKwh() {
-      // The today endpoint per-inverter values are unreliable (can be cumulative).
-      // Sanity check: a single school inverter maxes out around 50-80 kWh/day.
-      // If any inverter reports > 200 kWh for "today", it's clearly cumulative junk.
       const todayInverters = solarData.today?.inverters ?? {};
       let total = 0;
       let anyBad = false;
+      
+      // Check for cumulative lifetime data leaking into daily endpoint
       for (const [id, data] of Object.entries(todayInverters)) {
-        if ((data.kwh || 0) > 200) { anyBad = true; break; }
+        if ((data.kwh || 0) > 2000) { anyBad = true; break; }
         total += (data.kwh || 0);
       }
-      if (anyBad) {
-        // Fall back to estimating from current output × hours of daylight so far
-        const now = new Date();
-        const hoursSinceSunrise = Math.max(0, now.getHours() + now.getMinutes() / 60 - 6);
-        return getCurrentKw() * Math.min(hoursSinceSunrise, 12) * 0.6; // 0.6 = avg capacity factor
+      
+      if (!anyBad && total > 0) {
+        return total;
       }
-      return total;
+
+      // Fallback 1: Try to look up today's date in the history endpoint.
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      const days = (solarData.history?.days || solarData.history?.entries || []);
+      const todayHist = days.find(d => d.date === todayStr);
+
+      if (todayHist && todayHist.totalKwh > 0 && todayHist.totalKwh < 5000) {
+        return todayHist.totalKwh;
+      }
+
+      // Fallback 2: Estimate based on 7-day average. 
+      // Important for evening/night when instantaneous kW is 0 but we want the day's total.
+      const validDays = days.filter(d => (d.totalKwh || 0) > 10 && (d.totalKwh || 0) < 5000);
+      let avgKwh = 350; // Sane default
+      if (validDays.length > 0) {
+        avgKwh = validDays.reduce((acc, d) => acc + (d.totalKwh || 0), 0) / validDays.length;
+      }
+
+      // Scale by elapsed daylight hours (assume 6am to 6pm, 12 hours)
+      const hoursSinceSunrise = Math.max(0, Math.min(12, now.getHours() + now.getMinutes() / 60 - 6));
+      return avgKwh * (hoursSinceSunrise / 12);
     }
 
     // ── Slide Builders ──────────────────────
