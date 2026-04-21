@@ -226,13 +226,41 @@
       return div.innerHTML;
     }
 
+    function sanitizeHistory(history) {
+      if (!history) return history;
+      const rawDays = history.days;
+      const rawEntries = history.entries;
+      const days = (Array.isArray(rawDays) ? rawDays : Array.isArray(rawEntries) ? rawEntries : []).filter(d => d && d.date);
+      
+      days.forEach((d, i) => {
+        // Any day reporting > 5000 kWh is definitely a cumulative total leak from the API (e.g. 4.2M kWh spike)
+        if ((d.totalKwh || 0) > 5000) {
+          // Attempt to average neighbors for a sane estimate
+          const prev = days[i - 1]?.totalKwh;
+          const next = days[i + 1]?.totalKwh;
+          
+          if (prev !== undefined && prev < 2000 && next !== undefined && next < 2000) {
+            d.totalKwh = (prev + next) / 2;
+          } else if (prev !== undefined && prev < 2000) {
+            d.totalKwh = prev;
+          } else if (next !== undefined && next < 2000) {
+            d.totalKwh = next;
+          } else {
+            d.totalKwh = 350; // Fallback sane default for a school day
+          }
+        }
+      });
+      return history;
+    }
+
     async function loadWidget() {
       try {
-        const [current, today, history] = await Promise.all([
+        let [current, today, history] = await Promise.all([
           apiFetch('current'),
           apiFetch('today'),
           apiFetch('history?days=7').catch(() => ({ entries: [], days: [] })),
         ]);
+        history = sanitizeHistory(history);
 
         // The API's plantTotal and today endpoint return bad data:
         //   - plantTotal has all zeros
